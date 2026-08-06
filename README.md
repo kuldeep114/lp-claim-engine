@@ -345,6 +345,23 @@ state is the honest answer.
 - **No connection pool tuning, no read replica.** `pg.Pool()` defaults are
   fine for a demo's single evaluator, not for production concurrency.
 
+### One repo, one service: for now
+
+Backend, frontend, and the LLM integration live in a single repo, and the
+LLM call runs in-process inside the API, not as a separate service. That's
+the right call at this scale: three tables and one LLM call don't justify
+the coordination overhead of separate repos or a network hop between
+services.
+
+This is worth revisiting at exactly one point: once the async-queue rework
+above happens, the worker that runs the LLM assessment becomes a
+legitimate candidate for its own service. It has different scaling needs
+than the CRUD API (I/O-bound, rate-limited by Anthropic, wants its own
+retry/backoff and observability), and pulling it out at that point is a
+reasonable evolution. Doing it today, while the call is still a
+synchronous in-process function, would be splitting something that isn't
+under any real strain yet.
+
 ---
 
 ## 5. Deliberate scope cuts
