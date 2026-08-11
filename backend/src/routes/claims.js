@@ -12,6 +12,11 @@ function notFound(res, message) {
   return res.status(404).json({ error: message });
 }
 
+// A claim manager's "filtered_out" or "rejected" call ends the claim's
+// pipeline. Formulations and studies shouldn't be submittable against a
+// claim that's already been killed off.
+const DEAD_CLAIM_STATUSES = ["filtered_out", "rejected"];
+
 // -- Claims ------------------------------------------------------------
 
 // Business team proposes a product + claim.
@@ -110,6 +115,12 @@ router.post("/claims/:id/formulations", async (req, res, next) => {
     ]);
     const claim = claimRows[0];
     if (!claim) return notFound(res, "claim not found");
+    if (DEAD_CLAIM_STATUSES.includes(claim.status)) {
+      return badRequest(
+        res,
+        `cannot submit a formulation against a claim with status "${claim.status}"`
+      );
+    }
 
     const { scientist_name, formula_summary, test_results } = req.body;
     if (!scientist_name || !formula_summary) {
@@ -145,6 +156,12 @@ router.post("/formulations/:id/studies", async (req, res, next) => {
       formulation.claim_id,
     ]);
     const claim = claimRows[0];
+    if (DEAD_CLAIM_STATUSES.includes(claim.status)) {
+      return badRequest(
+        res,
+        `cannot submit a study against a claim with status "${claim.status}"`
+      );
+    }
 
     const { evaluator_name, study_summary, sample_size, methodology, measured_outcome } =
       req.body;
